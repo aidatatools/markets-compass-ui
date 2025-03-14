@@ -1,0 +1,123 @@
+import yahooFinance from 'yahoo-finance2';
+import { PrismaClient, StockData } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+interface CandlestickData {
+  timestamp: number;  // Unix timestamp in milliseconds
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+type StockDataSelect = Pick<StockData, 'timestamp' | 'open' | 'high' | 'low' | 'close' | 'adjClose' | 'volume'>;
+
+export async function getCandlestickData(
+  symbol: string,
+  startDate: Date,
+  endDate: Date,
+  useAdjusted: boolean = false
+): Promise<CandlestickData[]> {
+  try {
+    const data = await prisma.stockData.findMany({
+      where: {
+        symbol: symbol,
+        timestamp: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      orderBy: {
+        timestamp: 'asc'
+      },
+      select: {
+        timestamp: true,
+        open: true,
+        high: true,
+        low: true,
+        close: true,
+        adjClose: true,
+        volume: true
+      }
+    });
+
+    return data.map((item: StockDataSelect) => ({
+      timestamp: item.timestamp.getTime(),
+      open: useAdjusted ? (item.open * item.adjClose / item.close) : item.open,
+      high: useAdjusted ? (item.high * item.adjClose / item.close) : item.high,
+      low: useAdjusted ? (item.low * item.adjClose / item.close) : item.low,
+      close: useAdjusted ? item.adjClose : item.close,
+      volume: item.volume
+    }));
+  } catch (error) {
+    console.error('Error fetching candlestick data:', error);
+    throw error;
+  }
+}
+
+export async function fetchAndStoreHistoricalData(symbols: string[], startDate: Date, endDate: Date) {
+  try {
+    const results = await Promise.all(
+      symbols.map(async (symbol) => {
+        const historical = await yahooFinance.historical(symbol, {
+          period1: startDate,
+          period2: endDate,
+          interval: '1d'
+        });
+
+        const stockData = await prisma.stockData.createMany({
+          data: historical.map(quote => ({
+            symbol: symbol,
+            open: quote.open,
+            high: quote.high,
+            low: quote.low,
+            close: quote.close,
+            volume: quote.volume,
+            adjClose: quote.adjClose,
+            timestamp: quote.date
+          })),
+          skipDuplicates: true
+        });
+
+        return { symbol, recordsCreated: stockData.count };
+      })
+    );
+
+    return results;
+  } catch (error) {
+    console.error('Error fetching historical stock data:', error);
+    throw error;
+  }
+}
+
+export async function fetchAndStoreStockData(symbols: string[]) {
+  try {
+    const results = await Promise.all(
+      symbols.map(async (symbol) => {
+        const quote = await yahooFinance.quote(symbol);
+        
+        const stockData = await prisma.stockData.create({
+          data: {
+            symbol: symbol,
+            open: quote.regularMarketOpen || quote.regularMarketPrice || 0,
+            high: quote.regularMarketDayHigh || quote.regularMarketPrice || 0,
+            low: quote.regularMarketDayLow || quote.regularMarketPrice || 0,
+            close: quote.regularMarketPrice || 0,
+            volume: quote.regularMarketVolume || 0,
+            adjClose: quote.regularMarketPrice || 0, // For current day, adj close is same as close
+            timestamp: new Date()
+          },
+        });
+
+        return stockData;
+      })
+    );
+
+    return results;
+  } catch (error) {
+    console.error('Error fetching stock data:', error);
+    throw error;
+  }
+} 
