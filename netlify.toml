@@ -1,0 +1,9 @@
+[build]
+  command = "npx prisma generate && next build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_API_URL = "/"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs" 

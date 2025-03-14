@@ -1,5 +1,5 @@
 import yahooFinance from 'yahoo-finance2';
-import { PrismaClient, StockData } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -12,7 +12,15 @@ interface CandlestickData {
   volume: number;
 }
 
-type StockDataSelect = Pick<StockData, 'timestamp' | 'open' | 'high' | 'low' | 'close' | 'adjClose' | 'volume'>;
+type StockDataSelect = {
+  timestamp: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjClose: number;
+  volume: number;
+};
 
 export async function getCandlestickData(
   symbol: string,
