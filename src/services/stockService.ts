@@ -75,7 +75,7 @@ export async function fetchAndStoreHistoricalData(symbols: string[], startDate: 
             low: quote.low,
             close: quote.close,
             volume: quote.volume,
-            adjClose: quote.adjClose,
+            adjClose: quote.adjClose || quote.close, // Use close price if adjClose is undefined
             timestamp: quote.date
           })),
           skipDuplicates: true
@@ -97,16 +97,17 @@ export async function fetchAndStoreStockData(symbols: string[]) {
     const results = await Promise.all(
       symbols.map(async (symbol) => {
         const quote = await yahooFinance.quote(symbol);
+        const price = quote.regularMarketPrice || 0;
         
         const stockData = await prisma.stockData.create({
           data: {
             symbol: symbol,
-            open: quote.regularMarketOpen || quote.regularMarketPrice || 0,
-            high: quote.regularMarketDayHigh || quote.regularMarketPrice || 0,
-            low: quote.regularMarketDayLow || quote.regularMarketPrice || 0,
-            close: quote.regularMarketPrice || 0,
+            open: quote.regularMarketOpen || price,
+            high: quote.regularMarketDayHigh || price,
+            low: quote.regularMarketDayLow || price,
+            close: price,
             volume: quote.regularMarketVolume || 0,
-            adjClose: quote.regularMarketPrice || 0, // For current day, adj close is same as close
+            adjClose: price, // For current day, adj close is same as close
             timestamp: new Date()
           },
         });

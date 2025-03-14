@@ -10,9 +10,18 @@ interface PageProps {
   }>;
 }
 
+interface CandlestickData {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export default function StockPage({ params }: PageProps) {
   const { symbol } = use(params);
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<CandlestickData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
