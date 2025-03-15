@@ -6,4 +6,11 @@
   NEXT_PUBLIC_API_URL = "/"
 
 [[plugins]]
-  package = "@netlify/plugin-nextjs" 
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  external_node_modules = ["@prisma/client"]
+  node_bundler = "esbuild"
+
+[functions.fetch-stocks]
+  schedule = "30 22 * * 1-5" # 6:30 PM Eastern = 22:30 UTC, Monday-Friday 
