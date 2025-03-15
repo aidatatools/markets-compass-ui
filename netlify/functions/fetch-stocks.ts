@@ -70,14 +70,13 @@ async function fetchAndSaveStockData() {
         await prisma.stockData.create({
           data: {
             symbol,
-            date: formattedDate, // Add the required date field
+            timestamp: new Date(),
             open: Number(quote.regularMarketOpen),
             high: Number(quote.regularMarketDayHigh),
             low: Number(quote.regularMarketDayLow),
             close: Number(quote.regularMarketPrice),
             volume: Math.floor(Number(quote.regularMarketVolume)),
             adjClose: Number(quote.regularMarketPrice)
-            // timestamp will be added automatically by @default(now())
           }
         });
         
@@ -97,13 +96,68 @@ async function fetchAndSaveStockData() {
   }
 }
 
+async function fetchHistoricalData() {
+  console.log('Starting historical data fetch...');
+  
+  try {
+    for (const symbol of SYMBOLS) {
+      console.log(`Fetching historical data for ${symbol}...`);
+      
+      try {
+        const queryOptions = {
+          period1: new Date('2020-01-01'),
+          period2: new Date('2025-03-15'),
+          interval: '1d' as const,
+        };
+        
+        const result = await yahooFinance.historical(symbol, queryOptions);
+        
+        for (const day of result) {
+          await prisma.stockData.create({
+            data: {
+              symbol,
+              timestamp: new Date(day.date),
+              open: Number(day.open),
+              high: Number(day.high),
+              low: Number(day.low),
+              close: Number(day.close),
+              volume: Math.floor(Number(day.volume)),
+              adjClose: Number(day.adjClose || day.close)
+            }
+          });
+        }
+        
+        console.log(`Successfully saved historical data for ${symbol}`);
+        await sleep(DELAY_BETWEEN_REQUESTS);
+      } catch (error) {
+        console.error(`Error processing historical data for ${symbol}:`, error);
+      }
+    }
+    
+    console.log('All historical data fetched and saved successfully');
+  } catch (error) {
+    console.error('Error in fetchHistoricalData:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 const handler: Handler = async (event: HandlerEvent) => {
   try {
-    await fetchAndSaveStockData();
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Stock data fetched and saved successfully' }),
-    };
+    if (event.queryStringParameters?.historical === 'true') {
+      await fetchHistoricalData();
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Historical data fetched and saved successfully' }),
+      };
+    } else {
+      await fetchAndSaveStockData();
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Stock data fetched and saved successfully' }),
+      };
+    }
   } catch (error) {
     console.error('Error in handler:', error);
     return {

@@ -10,6 +10,7 @@ datasource db {
 model StockData {
   id        Int      @id @default(autoincrement())
   symbol    String
+  date      DateTime
   open      Float
   high      Float
   low       Float
@@ -20,6 +21,7 @@ model StockData {
 
   @@index([symbol])
   @@index([timestamp])
+  @@index([date])
 }
 
 model Feedback {
