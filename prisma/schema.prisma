@@ -1,10 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
 }
 
 model StockData {
@@ -13,11 +13,21 @@ model StockData {
   open      Float
   high      Float
   low       Float
-  close     Float    @map("price")
   volume    Int
   adjClose  Float
+  close     Float    @map("price")
   timestamp DateTime @default(now())
 
   @@index([symbol])
   @@index([timestamp])
-} 
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

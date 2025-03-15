@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import TimeDisplay from '@/components/TimeDisplay';
+import FeedbackForm from '@/components/FeedbackForm';
 
 const STOCKS = [
   { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust' },
@@ -13,6 +15,15 @@ const STOCKS = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="relative w-full h-[300px] mb-8">
+        <Image
+          src="/markets-aidatatools-com.jpg"
+          alt="Markets Compass Cover"
+          fill
+          className="object-cover"
+          priority
+        />
+      </div>
       <div className="max-w-7xl mx-auto p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
           <div>
@@ -24,7 +35,7 @@ export default function HomePage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-12">
           {STOCKS.map((stock) => (
             <Link
               key={stock.symbol}
@@ -42,6 +53,10 @@ export default function HomePage() {
               </div>
             </Link>
           ))}
+        </div>
+
+        <div className="max-w-2xl mx-auto">
+          <FeedbackForm />
         </div>
       </div>
     </div>

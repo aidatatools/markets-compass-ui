@@ -1,0 +1,64 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      FIRECRAWL_KEY: ${{ secrets.FIRECRAWL_KEY }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: |
+        npm ci
+        cd deep-research && npm ci && cd ..
+
+    - name: Create env file
+      run: |
+        echo "FIRECRAWL_KEY=${{ secrets.FIRECRAWL_KEY }}" >> .env
+        echo "OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}" >> .env
+        echo "OPENAI_KEY=${{ secrets.OPENAI_KEY }}" >> .env
+
+    - name: Start Deep Research API
+      run: NODE_ENV=production tsx --env-file=.env deep-research/src/api.ts &
+      
+    - name: Wait for API to start
+      run: |
+        timeout=30
+        while ! curl -s http://localhost:3051/health > /dev/null; do
+          if [ $timeout -le 0 ]; then
+            echo "API failed to start"
+            exit 1
+          fi
+          echo "Waiting for API to start..."
+          sleep 1
+          timeout=$((timeout-1))
+        done
+
+    - name: Run Tests
+      run: npm test
+
+    - name: Build
+      run: npm run build
+
+    - name: Deploy to Production
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # Add your deployment commands here
+        echo "Deploying to production..." 

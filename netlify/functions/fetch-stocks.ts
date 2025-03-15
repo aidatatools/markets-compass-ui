@@ -1,0 +1,119 @@
+import { Handler, HandlerEvent, schedule } from "@netlify/functions";
+import { PrismaClient, Prisma } from "@prisma/client";
+import yahooFinance from "yahoo-finance2";
+import { format } from "date-fns";
+
+const prisma = new PrismaClient();
+
+// Define the stock data type
+type StockQuote = {
+  regularMarketOpen: number;
+  regularMarketDayHigh: number;
+  regularMarketDayLow: number;
+  regularMarketPrice: number;
+  regularMarketVolume: number;
+};
+
+const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
+const MAX_RETRIES = 3;
+const DELAY_BETWEEN_REQUESTS = 2000; // 2 seconds between requests
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(symbol: string, retries = 0): Promise<StockQuote> {
+  try {
+    const quoteResponse = await yahooFinance.quote(symbol);
+    
+    // Create a properly typed object from the response
+    const quote: StockQuote = {
+      regularMarketOpen: Number(quoteResponse.regularMarketOpen || 0),
+      regularMarketDayHigh: Number(quoteResponse.regularMarketDayHigh || 0),
+      regularMarketDayLow: Number(quoteResponse.regularMarketDayLow || 0),
+      regularMarketPrice: Number(quoteResponse.regularMarketPrice || 0),
+      regularMarketVolume: Number(quoteResponse.regularMarketVolume || 0)
+    };
+    
+    return quote;
+  } catch (error) {
+    if (retries < MAX_RETRIES) {
+      console.log(`Retry ${retries + 1} for ${symbol} after error:`, error);
+      await sleep(DELAY_BETWEEN_REQUESTS * (retries + 1));
+      return fetchWithRetry(symbol, retries + 1);
+    }
+    throw error;
+  }
+}
+
+async function fetchAndSaveStockData() {
+  console.log(`Starting stock data fetch at ${new Date().toISOString()}`);
+  
+  try {
+    for (const symbol of SYMBOLS) {
+      console.log(`Fetching data for ${symbol}...`);
+      
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const formattedDate = format(today, 'yyyy-MM-dd');
+      
+      try {
+        const quote = await fetchWithRetry(symbol);
+        
+        if (!quote.regularMarketOpen || !quote.regularMarketDayHigh || 
+            !quote.regularMarketDayLow || !quote.regularMarketPrice || 
+            !quote.regularMarketVolume) {
+          throw new Error(`Missing required data for ${symbol}`);
+        }
+
+        // Create the stock data object matching our schema
+        await prisma.stockData.create({
+          data: {
+            symbol,
+            date: formattedDate, // Add the required date field
+            open: Number(quote.regularMarketOpen),
+            high: Number(quote.regularMarketDayHigh),
+            low: Number(quote.regularMarketDayLow),
+            close: Number(quote.regularMarketPrice),
+            volume: Math.floor(Number(quote.regularMarketVolume)),
+            adjClose: Number(quote.regularMarketPrice)
+            // timestamp will be added automatically by @default(now())
+          }
+        });
+        
+        console.log(`Successfully saved data for ${symbol}`);
+        await sleep(DELAY_BETWEEN_REQUESTS);
+      } catch (error) {
+        console.error(`Error processing ${symbol}:`, error);
+      }
+    }
+    
+    console.log('All stock data fetched and saved successfully');
+  } catch (error) {
+    console.error('Error in fetchAndSaveStockData:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+const handler: Handler = async (event: HandlerEvent) => {
+  try {
+    await fetchAndSaveStockData();
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Stock data fetched and saved successfully' }),
+    };
+  } catch (error) {
+    console.error('Error in handler:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Failed to fetch and save stock data' }),
+    };
+  }
+};
+
+export { handler };
+
+// Schedule for 6:30 PM Eastern Time on weekdays (Monday-Friday)
+export default schedule("30 18 * * 1-5", handler); 

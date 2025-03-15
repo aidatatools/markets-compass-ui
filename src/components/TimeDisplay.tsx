@@ -25,40 +25,46 @@ export default function TimeDisplay() {
     return () => clearTimeout(initialTimeout);
   }, []);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  const formatDateTime = (date: Date, timeZone: string) => {
+    // Create a date object in the specified timezone
+    const options = { timeZone };
+    const tzDate = new Date(date.toLocaleString('en-US', options));
+    
+    // Format date as YYYY-MM-DD
+    const year = tzDate.getFullYear();
+    const month = String(tzDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tzDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
 
-  const formatTime = (date: Date, timeZone: string) => {
-    return date.toLocaleTimeString('en-US', {
+    // Format time with timezone
+    const time = date.toLocaleString('en-US', {
+      timeZone,
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
-      timeZone,
       timeZoneName: 'short',
     });
+
+    return {
+      date: dateStr,
+      time
+    };
   };
 
-  const easternDate = formatDate(currentTime);
-  const easternTime = formatTime(currentTime, 'America/New_York');
-  const localTime = formatTime(currentTime, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const eastern = formatDateTime(currentTime, 'America/New_York');
+  const local = formatDateTime(currentTime, Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 text-sm text-gray-600 dark:text-gray-400">
       <div className="flex items-center gap-2">
-        <span className="font-mono">{easternDate}</span>
-      </div>
-      <div className="flex items-center gap-2">
         <span className="font-semibold">Eastern:</span>
-        <span className="font-mono">{easternTime}</span>
+        <span className="font-mono">{eastern.date}</span>
+        <span className="font-mono">{eastern.time}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="font-semibold">Local:</span>
-        <span className="font-mono">{localTime}</span>
+        <span className="font-mono">{local.date}</span>
+        <span className="font-mono">{local.time}</span>
       </div>
     </div>
   );
