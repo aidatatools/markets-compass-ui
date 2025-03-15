@@ -1,18 +1,9 @@
 import { Metadata } from 'next';
-import StockPageContent from '@/components/StockPageContent';
+import SymbolPageWrapper from '@/components/SymbolPageWrapper';
 
-type Props = {
-  params: { symbol: string };
+export const metadata: Metadata = {
+  title: 'Stock Details | Markets Compass',
 };
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  // Ensure params is resolved
-  const symbol = params.symbol;
-  
-  return {
-    title: `${symbol} | Markets Compass`,
-  };
-}
 
 // Define valid symbols to ensure the page is generated for them
 export function generateStaticParams() {
@@ -24,9 +15,6 @@ export function generateStaticParams() {
   ];
 }
 
-export default async function Page({ params }: Props) {
-  // Ensure params is resolved
-  const symbol = params.symbol;
-  
-  return <StockPageContent symbol={symbol} />;
+export default function Page() {
+  return <SymbolPageWrapper />;
 } 
