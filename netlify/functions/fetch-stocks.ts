@@ -1,5 +1,5 @@
-import { Handler, HandlerEvent, schedule } from "@netlify/functions";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Handler, HandlerEvent } from "@netlify/functions";
+import { PrismaClient } from "@prisma/client";
 import yahooFinance from "yahoo-finance2";
 import { format } from "date-fns";
 
@@ -143,7 +143,7 @@ async function fetchHistoricalData() {
   }
 }
 
-const handler: Handler = async (event: HandlerEvent) => {
+export const handler: Handler = async (event: HandlerEvent) => {
   try {
     if (event.queryStringParameters?.historical === 'true') {
       await fetchHistoricalData();
@@ -167,7 +167,7 @@ const handler: Handler = async (event: HandlerEvent) => {
   }
 };
 
-export { handler };
-
-// Schedule for 6:30 PM Eastern Time on weekdays (Monday-Friday)
-export default schedule("30 18 * * 1-5", handler); 
+// To schedule this function, use the Netlify UI or netlify.toml configuration
+// Example netlify.toml configuration:
+// [functions.fetch-stocks]
+// schedule = "30 18 * * 1-5" 
