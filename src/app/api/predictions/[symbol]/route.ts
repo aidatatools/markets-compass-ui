@@ -40,10 +40,18 @@ export async function GET(
     console.log('Found prediction:', {
       _id: prediction._id,
       symbolId: prediction.symbolId,
-      hasHtmlReport: !!prediction.htmlReport
+      prediction: prediction.prediction,
+      confidence: prediction.confidence
     });
 
-    return NextResponse.json(prediction);
+    return NextResponse.json({
+      prediction: prediction.prediction,
+      confidence: prediction.confidence,
+      timestamp: prediction.timestamp,
+      symbolId: prediction.symbolId,
+      markdownReport: prediction.markdownReport,
+      htmlReport: prediction.htmlReport
+    });
   } catch (error) {
     console.error('Error fetching prediction:', error);
     return NextResponse.json(
