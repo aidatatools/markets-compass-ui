@@ -15,14 +15,14 @@ const STOCKS = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="relative w-full h-[300px] mb-8">
+      <div className="relative w-full h-[200px] sm:h-[250px] md:h-[300px] mb-8">
         {/* Mobile screens (up to 800px) */}
         <div className="block lg:hidden">
           <Image
             src="/markets-aidatatools-small.jpg"
             alt="Markets Compass Cover"
             fill
-            className="object-cover"
+            className="object-contain sm:object-cover"
             priority
             sizes="100vw"
             quality={90}
