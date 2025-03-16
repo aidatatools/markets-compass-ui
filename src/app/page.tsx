@@ -16,13 +16,42 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="relative w-full h-[300px] mb-8">
-        <Image
-          src="/markets-aidatatools-com.jpg"
-          alt="Markets Compass Cover"
-          fill
-          className="object-cover"
-          priority
-        />
+        {/* Mobile screens (up to 800px) */}
+        <div className="block lg:hidden">
+          <Image
+            src="/markets-aidatatools-small.jpg"
+            alt="Markets Compass Cover"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+            quality={90}
+          />
+        </div>
+        {/* Medium screens (800px to 1500px) */}
+        <div className="hidden lg:block 2xl:hidden">
+          <Image
+            src="/markets-aidatatools-middle.jpg"
+            alt="Markets Compass Cover"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+            quality={90}
+          />
+        </div>
+        {/* Large screens (above 1500px) */}
+        <div className="hidden 2xl:block">
+          <Image
+            src="/markets-aidatatools-com.jpg"
+            alt="Markets Compass Cover"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+            quality={90}
+          />
+        </div>
       </div>
       <div className="max-w-7xl mx-auto p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
