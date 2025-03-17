@@ -24,11 +24,6 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
-    - name: Install Dependencies
-      run: |
-        npm ci
-        cd deep-research && npm ci && cd ..
-
     - name: Create env file
       run: |
         echo "FIRECRAWL_KEY=${{ secrets.FIRECRAWL_KEY }}" >> .env
