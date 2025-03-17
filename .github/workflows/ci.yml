@@ -35,22 +35,6 @@ jobs:
         echo "OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}" >> .env
         echo "OPENAI_KEY=${{ secrets.OPENAI_KEY }}" >> .env
 
-    - name: Start Deep Research API
-      run: NODE_ENV=production tsx --env-file=.env deep-research/src/api.ts &
-      
-    - name: Wait for API to start
-      run: |
-        timeout=30
-        while ! curl -s http://localhost:3051/health > /dev/null; do
-          if [ $timeout -le 0 ]; then
-            echo "API failed to start"
-            exit 1
-          fi
-          echo "Waiting for API to start..."
-          sleep 1
-          timeout=$((timeout-1))
-        done
-
     - name: Run Tests
       run: npm test
 
