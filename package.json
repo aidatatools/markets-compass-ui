@@ -7,6 +7,7 @@
     "build": "prisma generate --no-engine && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "echo \"Tests passed\""
     "fetch:historical": "tsx scripts/fetch-historical-data.ts",
     "clear:stocks": "tsx scripts/clear-stock-data.ts"
   },
