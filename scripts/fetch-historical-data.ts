@@ -19,7 +19,7 @@ async function fetchHistoricalData() {
       try {
         const queryOptions = {
           period1: new Date('2020-01-01'),
-          period2: new Date('2025-03-15'),
+          period2: new Date('2025-03-17T23:59:59.999Z'),
           interval: '1d' as const,
           includeAdjustedClose: true,
           return: 'object' as const
@@ -31,22 +31,38 @@ async function fetchHistoricalData() {
         const adjClose = result.indicators.adjclose?.[0]?.adjclose || [];
         
         console.log(`Got ${timestamps.length} days of data for ${symbol}`);
+        console.log(`Date range: ${new Date(timestamps[0] * 1000).toISOString()} to ${new Date(timestamps[timestamps.length - 1] * 1000).toISOString()}`);
         
         for (let i = 0; i < timestamps.length; i++) {
           if (quotes.open[i] && quotes.high[i] && quotes.low[i] && quotes.close[i] && quotes.volume[i]) {
-            await prisma.stockData.create({
-              data: {
+            const timestamp = new Date(timestamps[i] * 1000);
+            timestamp.setUTCHours(0, 0, 0, 0);
+            
+            const existingData = await prisma.stockData.findFirst({
+              where: {
                 symbol,
-                date: new Date(timestamps[i] * 1000),                
-                open: Number(quotes.open[i]),
-                high: Number(quotes.high[i]),
-                low: Number(quotes.low[i]),
-                close: Number(quotes.close[i]),
-                volume: Math.floor(Number(quotes.volume[i])),
-                adjClose: Number(adjClose[i] || quotes.close[i]),
-                timestamp: new Date(timestamps[i] * 1000)
+                timestamp: {
+                  gte: timestamp,
+                  lt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000)
+                }
               }
             });
+
+            if (!existingData) {
+              await prisma.stockData.create({
+                data: {
+                  symbol,
+                  date: timestamp,
+                  open: Number(quotes.open[i]),
+                  high: Number(quotes.high[i]),
+                  low: Number(quotes.low[i]),
+                  close: Number(quotes.close[i]),
+                  volume: Math.floor(Number(quotes.volume[i])),
+                  adjClose: Number(adjClose[i] || quotes.close[i]),
+                  timestamp: timestamp
+                }
+              });
+            }
           }
         }
         

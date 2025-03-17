@@ -64,9 +64,26 @@ async function fetchAndSaveStockData() {
     for (const symbol of SYMBOLS) {
       console.log(`Fetching data for ${symbol}...`);
       
-      // Get today's date in YYYY-MM-DD format
+      // Get today's date in UTC
       const today = new Date();
-      const formattedDate = format(today, 'yyyy-MM-dd');
+      // Set time to midnight UTC
+      today.setUTCHours(0, 0, 0, 0);
+
+      // Check if we already have data for today
+      const existingData = await prisma.stockData.findFirst({
+        where: {
+          symbol,
+          timestamp: {
+            gte: today,
+            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Next day
+          }
+        }
+      });
+
+      if (existingData) {
+        console.log(`Data for ${symbol} on ${today.toISOString()} already exists, skipping...`);
+        continue;
+      }
       
       try {
         const quote = await fetchWithRetry(symbol);
@@ -81,8 +98,8 @@ async function fetchAndSaveStockData() {
         await prisma.stockData.create({
           data: {
             symbol,
-            date: new Date(formattedDate),
-            timestamp: new Date(),
+            date: today,
+            timestamp: today,
             open: Number(quote.regularMarketOpen),
             high: Number(quote.regularMarketDayHigh),
             low: Number(quote.regularMarketDayLow),
@@ -92,7 +109,7 @@ async function fetchAndSaveStockData() {
           }
         });
         
-        console.log(`Successfully saved data for ${symbol}`);
+        console.log(`Successfully saved data for ${symbol} with date ${today.toISOString()}`);
         await sleep(DELAY_BETWEEN_REQUESTS);
       } catch (error) {
         console.error(`Error processing ${symbol}:`, error);
@@ -107,7 +124,6 @@ async function fetchAndSaveStockData() {
     await prisma.$disconnect();
   }
 }
-
 
 export const handler: Handler = async (event: HandlerEvent) => {
   try {

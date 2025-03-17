@@ -16,10 +16,36 @@ export async function GET(request: Request) {
       );
     }
 
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // Default to 1 year ago
+    // Set end date to today at midnight UTC
     const end = endDate ? new Date(endDate) : new Date();
+    end.setUTCHours(0, 0, 0, 0);
+
+    // Set start date to exactly 12 months ago at midnight UTC
+    const start = startDate ? new Date(startDate) : new Date(end);
+    start.setMonth(start.getMonth() - 12);
+    start.setUTCHours(0, 0, 0, 0);
+
+    console.log('Candlestick API Request:', {
+      symbol,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      useAdjusted,
+      currentTime: new Date().toISOString(),
+      monthsDiff: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44) // Approximate months
+    });
 
     const data = await getCandlestickData(symbol, start, end, useAdjusted);
+    
+    console.log('Candlestick API Response:', {
+      symbol,
+      dataPoints: data.length,
+      firstDate: data[0] ? new Date(data[0].timestamp).toISOString() : null,
+      lastDate: data[data.length - 1] ? new Date(data[data.length - 1].timestamp).toISOString() : null,
+      dateRange: {
+        start: start.toISOString(),
+        end: end.toISOString()
+      }
+    });
     
     return NextResponse.json({
       success: true,
