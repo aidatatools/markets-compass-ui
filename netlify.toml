@@ -1,5 +1,5 @@
 [build]
-  command = "npx prisma generate && next build"
+  command = "prisma generate --no-engine && next build"
   publish = ".next"
 
 [build.environment]
