@@ -29,15 +29,15 @@ interface ApiResponse {
 const fetcher = async (url: string) => {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('Failed to fetch data');
+    throw new Error(`Failed to fetch data: ${response.status}`);
   }
   return response.json();
 };
 
 export default function StockPageContent({ symbol }: StockPageContentProps) {
   const { data, error, isLoading } = useSWR<ApiResponse>(
-    `/api/stocks/candlestick?symbol=${symbol}&adjusted=true`,
-    fetcher,
+    [`/api/stocks/candlestick`, symbol],
+    ([url, currentSymbol]) => fetcher(`${url}?symbol=${currentSymbol}&adjusted=true`),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -49,9 +49,13 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
 
   // Log data updates
   useEffect(() => {
+    console.log('Component rendered with symbol:', symbol);
+    
     if (data) {
       console.log('Stock data loaded:', {
         symbol,
+        requestedSymbol: symbol,
+        returnedSymbol: data.data.symbol,
         timestamp: new Date().toISOString(),
         dataPoints: data.data.candlesticks.length,
         lastDate: data.data.candlesticks.length > 0 
@@ -113,6 +117,7 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
         
         <div className="bg-[#1E222D] rounded-xl p-4 shadow-lg mb-6">
           <StockChart
+            key={`chart-${symbol}`}
             data={candlestickData}
             symbol={symbol}
             height={600}

@@ -91,6 +91,13 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
   }, [data]);
 
   useEffect(() => {
+    if (candlestickSeriesRef.current && formattedData.length > 0) {
+      console.log(`Setting chart data for ${symbol} with ${formattedData.length} points`);
+      candlestickSeriesRef.current.setData(formattedData);
+    }
+  }, [formattedData, symbol]);
+
+  useEffect(() => {
     if (!chartContainerRef.current) return;
 
     // Create chart instance
@@ -114,7 +121,10 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
     candlestickSeriesRef.current = candlestickSeries;
 
     // Set initial data
-    candlestickSeries.setData(formattedData);
+    if (formattedData.length > 0) {
+      console.log(`Initial data set for ${symbol} with ${formattedData.length} points`);
+      candlestickSeries.setData(formattedData);
+    }
 
     // Handle window resize
     const handleResize = () => {
