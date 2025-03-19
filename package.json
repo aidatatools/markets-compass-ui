@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "echo \"Tests passed\"",
+    "postinstall": "prisma generate --no-engine",
     "fetch:historical": "tsx scripts/fetch-historical-data.ts",
     "clear:stocks": "tsx scripts/clear-stock-data.ts"
   },
