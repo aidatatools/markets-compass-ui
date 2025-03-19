@@ -81,6 +81,9 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
 
   // Format data for the chart library
   const formattedData = useMemo(() => {
+    console.log(`Formatting data for ${symbol}: ${data.length} points`);
+    if (!data || data.length === 0) return [];
+    
     return data.map(item => ({
       time: Math.floor(item.timestamp / 1000) as any, // Convert to seconds and cast to any to satisfy the type
       open: item.open,
@@ -88,14 +91,25 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
       low: item.low,
       close: item.close,
     }));
-  }, [data]);
+  }, [data, symbol]);
 
   // Effect for creating/recreating chart when data or symbol changes
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    console.log(`Chart effect triggered for ${symbol} with ${formattedData.length} data points`);
+    
+    if (!chartContainerRef.current) {
+      console.log(`Chart container not available for ${symbol}`);
+      return;
+    }
+
+    if (formattedData.length === 0) {
+      console.log(`No data available for ${symbol}`);
+      return;
+    }
 
     // Clean up existing chart first
     if (chartRef.current) {
+      console.log(`Removing existing chart for ${symbol}`);
       chartRef.current.remove();
       chartRef.current = null;
       candlestickSeriesRef.current = null;
