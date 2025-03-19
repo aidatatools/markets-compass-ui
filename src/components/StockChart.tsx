@@ -90,15 +90,16 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
     }));
   }, [data]);
 
-  useEffect(() => {
-    if (candlestickSeriesRef.current && formattedData.length > 0) {
-      console.log(`Setting chart data for ${symbol} with ${formattedData.length} points`);
-      candlestickSeriesRef.current.setData(formattedData);
-    }
-  }, [formattedData, symbol]);
-
+  // Effect for creating/recreating chart when data or symbol changes
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    // Clean up existing chart first
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+      candlestickSeriesRef.current = null;
+    }
 
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
@@ -120,9 +121,9 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
     chartRef.current = chart;
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Set initial data
+    // Set data
     if (formattedData.length > 0) {
-      console.log(`Initial data set for ${symbol} with ${formattedData.length} points`);
+      console.log(`Creating chart for ${symbol} with ${formattedData.length} data points`);
       candlestickSeries.setData(formattedData);
     }
 
@@ -141,9 +142,11 @@ export default function StockChart({ data, symbol, height = 400 }: StockChartPro
       window.removeEventListener('resize', handleResize);
       if (chartRef.current) {
         chartRef.current.remove();
+        chartRef.current = null;
+        candlestickSeriesRef.current = null;
       }
     };
-  }, [chartOptions, height]);
+  }, [chartOptions, height, formattedData, symbol]);
 
   return (
     <div ref={chartContainerRef} className="w-full" />

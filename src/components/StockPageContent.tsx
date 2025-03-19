@@ -36,14 +36,18 @@ const fetcher = async (url: string) => {
 
 export default function StockPageContent({ symbol }: StockPageContentProps) {
   const { data, error, isLoading } = useSWR<ApiResponse>(
-    [`/api/stocks/candlestick`, symbol],
-    ([url, currentSymbol]) => fetcher(`${url}?symbol=${currentSymbol}&adjusted=true`),
+    [`/api/stocks/candlestick`, symbol, Date.now()],
+    ([url, currentSymbol]) => fetcher(`${url}?symbol=${currentSymbol}&adjusted=true&t=${Date.now()}`),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 0,
       revalidateIfStale: true,
       revalidateOnMount: true,
+      shouldRetryOnError: true,
+      errorRetryCount: 3,
+      refreshWhenHidden: false,
+      refreshInterval: 0,
     }
   );
 

@@ -59,9 +59,10 @@ export async function GET(request: Request) {
       }
     });
 
-    // Set cache headers
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=60');
-    response.headers.set('Expires', new Date(Date.now() + 3600 * 1000).toUTCString());
+    // Set cache headers for production - but ensure no client-side caching
+    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('Expires', '0');
+    response.headers.set('Pragma', 'no-cache');
 
     return response;
   } catch (error) {
