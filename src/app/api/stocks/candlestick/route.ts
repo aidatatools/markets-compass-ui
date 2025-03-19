@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCandlestickData } from '@/services/stockService';
 
+export const revalidate = 60; // SWR: 60 seconds
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -47,13 +49,20 @@ export async function GET(request: Request) {
       }
     });
     
-    return NextResponse.json({
+    // Create response with cache headers
+    const response = NextResponse.json({
       success: true,
       data: {
         symbol,
         candlesticks: data
       }
     });
+
+    // Set cache headers
+    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=60');
+    response.headers.set('Expires', new Date(Date.now() + 3600 * 1000).toUTCString());
+
+    return response;
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

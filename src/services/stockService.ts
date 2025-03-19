@@ -26,19 +26,19 @@ export async function getCandlestickData(
   symbol: string,
   startDate: Date,
   endDate: Date,
-  useAdjusted: boolean = false
+  useAdjusted: boolean = true
 ): Promise<CandlestickData[]> {
   try {
     const data = await prisma.stockData.findMany({
       where: {
-        symbol: symbol,
+        symbol,
         timestamp: {
           gte: startDate,
-          lte: endDate
-        }
+          lte: endDate,
+        },
       },
       orderBy: {
-        timestamp: 'asc'
+        timestamp: 'asc',
       },
       select: {
         timestamp: true,
@@ -47,17 +47,17 @@ export async function getCandlestickData(
         low: true,
         close: true,
         adjClose: true,
-        volume: true
-      }
+        volume: true,
+      },
     });
 
-    return data.map((item: StockDataSelect) => ({
+    return data.map(item => ({
       timestamp: item.timestamp.getTime(),
       open: useAdjusted ? (item.open * item.adjClose / item.close) : item.open,
       high: useAdjusted ? (item.high * item.adjClose / item.close) : item.high,
       low: useAdjusted ? (item.low * item.adjClose / item.close) : item.low,
       close: useAdjusted ? item.adjClose : item.close,
-      volume: item.volume
+      volume: item.volume,
     }));
   } catch (error) {
     console.error('Error fetching candlestick data:', error);
@@ -78,6 +78,7 @@ export async function fetchAndStoreHistoricalData(symbols: string[], startDate: 
         const stockData = await prisma.stockData.createMany({
           data: historical.map(quote => ({
             symbol: symbol,
+            date: quote.date,
             open: quote.open,
             high: quote.high,
             low: quote.low,
@@ -106,17 +107,19 @@ export async function fetchAndStoreStockData(symbols: string[]) {
       symbols.map(async (symbol) => {
         const quote = await yahooFinance.quote(symbol);
         const price = quote.regularMarketPrice || 0;
+        const now = new Date();
         
         const stockData = await prisma.stockData.create({
           data: {
             symbol: symbol,
+            date: now,
             open: quote.regularMarketOpen || price,
             high: quote.regularMarketDayHigh || price,
             low: quote.regularMarketDayLow || price,
             close: price,
             volume: quote.regularMarketVolume || 0,
             adjClose: price, // For current day, adj close is same as close
-            timestamp: new Date()
+            timestamp: now
           },
         });
 

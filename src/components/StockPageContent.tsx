@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import StockChart from '@/components/StockChart';
+import useSWR from 'swr';
 
 interface CandlestickData {
   timestamp: number;
@@ -17,35 +18,48 @@ interface StockPageContentProps {
   symbol: string;
 }
 
+interface ApiResponse {
+  success: boolean;
+  data: {
+    symbol: string;
+    candlesticks: CandlestickData[];
+  };
+}
+
+const fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch data');
+  }
+  return response.json();
+};
+
 export default function StockPageContent({ symbol }: StockPageContentProps) {
-  const [data, setData] = useState<CandlestickData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, isLoading } = useSWR<ApiResponse>(
+    `/api/stocks/candlestick?symbol=${symbol}&adjusted=true`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 0,
+    }
+  );
 
+  // Log data updates
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/stocks/candlestick?symbol=${symbol}&adjusted=true`);
-        const result = await response.json();
-        
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to fetch data');
-        }
-        
-        setData(result.data.candlesticks);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (data) {
+      console.log('Stock data loaded:', {
+        symbol,
+        timestamp: new Date().toISOString(),
+        dataPoints: data.data.candlesticks.length,
+        lastDate: data.data.candlesticks.length > 0 
+          ? new Date(data.data.candlesticks[data.data.candlesticks.length - 1].timestamp).toISOString()
+          : null,
+      });
+    }
+  }, [data, symbol]);
 
-    fetchData();
-  }, [symbol]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <div className="text-lg text-white">Loading chart data...</div>
@@ -56,14 +70,16 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-red-500">{error}</div>
+        <div className="text-red-500">{error.message}</div>
       </div>
     );
   }
 
+  const candlestickData = data?.data.candlesticks || [];
+
   // Calculate price change and percentage
-  const latestPrice = data.length > 0 ? data[data.length - 1].close : 0;
-  const previousPrice = data.length > 1 ? data[data.length - 2].close : latestPrice;
+  const latestPrice = candlestickData.length > 0 ? candlestickData[candlestickData.length - 1].close : 0;
+  const previousPrice = candlestickData.length > 1 ? candlestickData[candlestickData.length - 2].close : latestPrice;
   const priceChange = latestPrice - previousPrice;
   const percentChange = previousPrice !== 0 ? (priceChange / previousPrice) * 100 : 0;
   const isPositive = priceChange >= 0;
@@ -95,7 +111,7 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
         
         <div className="bg-[#1E222D] rounded-xl p-4 shadow-lg mb-6">
           <StockChart
-            data={data}
+            data={candlestickData}
             symbol={symbol}
             height={600}
           />
@@ -104,19 +120,19 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-gray-800 p-4 rounded-lg">
             <h3 className="text-gray-400 text-sm">Open</h3>
-            <p className="text-xl font-semibold">${data.length > 0 ? data[data.length - 1].open.toFixed(2) : 'N/A'}</p>
+            <p className="text-xl font-semibold">${candlestickData.length > 0 ? candlestickData[candlestickData.length - 1].open.toFixed(2) : 'N/A'}</p>
           </div>
           <div className="bg-gray-800 p-4 rounded-lg">
             <h3 className="text-gray-400 text-sm">High</h3>
-            <p className="text-xl font-semibold">${data.length > 0 ? data[data.length - 1].high.toFixed(2) : 'N/A'}</p>
+            <p className="text-xl font-semibold">${candlestickData.length > 0 ? candlestickData[candlestickData.length - 1].high.toFixed(2) : 'N/A'}</p>
           </div>
           <div className="bg-gray-800 p-4 rounded-lg">
             <h3 className="text-gray-400 text-sm">Low</h3>
-            <p className="text-xl font-semibold">${data.length > 0 ? data[data.length - 1].low.toFixed(2) : 'N/A'}</p>
+            <p className="text-xl font-semibold">${candlestickData.length > 0 ? candlestickData[candlestickData.length - 1].low.toFixed(2) : 'N/A'}</p>
           </div>
           <div className="bg-gray-800 p-4 rounded-lg">
             <h3 className="text-gray-400 text-sm">Volume</h3>
-            <p className="text-xl font-semibold">{data.length > 0 ? (data[data.length - 1].volume).toLocaleString() : 'N/A'}</p>
+            <p className="text-xl font-semibold">{candlestickData.length > 0 ? (candlestickData[candlestickData.length - 1].volume).toLocaleString() : 'N/A'}</p>
           </div>
         </div>
         

@@ -24,6 +24,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "swr": "^2.3.3",
     "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { createChart, UTCTimestamp } from 'lightweight-charts';
+import { useEffect, useRef, useMemo } from 'react';
+import { createChart, IChartApi, ISeriesApi, LineWidth } from 'lightweight-charts';
 
 interface CandlestickData {
   timestamp: number;
@@ -16,171 +16,126 @@ interface StockChartProps {
   data: CandlestickData[];
   symbol: string;
   height?: number;
-  width?: number;
 }
 
-export default function StockChart({ data, symbol, height = 600, width = 600 }: StockChartProps) {
+export default function StockChart({ data, symbol, height = 400 }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+
+  // Memoize the chart options to prevent unnecessary re-renders
+  const chartOptions = useMemo(() => ({
+    layout: {
+      background: { color: '#1E222D' },
+      textColor: '#D9D9D9',
+    },
+    grid: {
+      vertLines: { color: '#2B2B43' },
+      horzLines: { color: '#2B2B43' },
+    },
+    crosshair: {
+      mode: 1,
+      vertLine: {
+        labelVisible: true,
+        style: 1,
+        width: 1 as LineWidth,
+        color: '#6A6A6A',
+      },
+      horzLine: {
+        labelVisible: true,
+        style: 1,
+        width: 1 as LineWidth,
+        color: '#6A6A6A',
+      },
+    },
+    rightPriceScale: {
+      borderColor: '#2B2B43',
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.1,
+      },
+    },
+    timeScale: {
+      borderColor: '#2B2B43',
+      timeVisible: true,
+      secondsVisible: false,
+      fixLeftEdge: true,
+      fixRightEdge: true,
+      minBarSpacing: 10,
+      rightOffset: 12,
+      barSpacing: 12,
+      rightBarStaysOnScroll: true,
+      borderVisible: false,
+      tickMarkFormatter: (time: number) => {
+        const date = new Date(time * 1000);
+        return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      },
+    },
+    localization: {
+      timeFormatter: (time: number) => {
+        const date = new Date(time * 1000);
+        return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      },
+    },
+  }), []);
+
+  // Format data for the chart library
+  const formattedData = useMemo(() => {
+    return data.map(item => ({
+      time: Math.floor(item.timestamp / 1000) as any, // Convert to seconds and cast to any to satisfy the type
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+    }));
+  }, [data]);
 
   useEffect(() => {
-    if (!chartContainerRef.current || !data || data.length === 0) return;
+    if (!chartContainerRef.current) return;
 
-    const handleResize = () => {
-      chart.applyOptions({ 
-        width: chartContainerRef.current?.clientWidth || width,
-        height: height 
-      });
-    };
-
-    // Create chart with improved styling
+    // Create chart instance
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { color: '#1E222D' },
-        textColor: '#DDD',
-        fontSize: 12,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif',
-      },
-      grid: {
-        vertLines: { color: '#2B2B43', style: 1, visible: true },
-        horzLines: { color: '#2B2B43', style: 1, visible: true },
-      },
+      ...chartOptions,
       width: chartContainerRef.current.clientWidth,
-      height: height,
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: '#6A6A6A',
-          width: 1,
-          style: 1,
-          visible: true,
-          labelVisible: true,
-        },
-        horzLine: {
-          color: '#6A6A6A',
-          width: 1,
-          style: 1,
-          visible: true,
-          labelVisible: true,
-        },
-      },
-      timeScale: {
-        borderColor: '#2B2B43',
-        timeVisible: true,
-        secondsVisible: false,
-        tickMarkFormatter: (time: number) => {
-          const date = new Date(time * 1000);
-          return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-        },
-      },
-      rightPriceScale: {
-        borderColor: '#2B2B43',
-      },
-      localization: {
-        timeFormatter: (time: number) => {
-          const date = new Date(time * 1000);
-          return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-        },
-      },
+      height,
     });
 
-    // Create candlestick series with improved styling
-    const mainSeries = chart.addCandlestickSeries({
+    // Create candlestick series
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
-      priceScaleId: 'right',
-      scaleMargins: {
-        top: 0.1,
-        bottom: 0.3, // Leave space for volume pane
-      },
     });
 
-    // Create volume series in a separate pane
-    const volumeSeries = chart.addHistogramSeries({
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: 'volume', // Separate scale
-      scaleMargins: {
-        top: 0.8, // Position at bottom 20% of chart
-        bottom: 0.02,
-      },
-    });
+    // Store references
+    chartRef.current = chart;
+    candlestickSeriesRef.current = candlestickSeries;
 
-    // Apply custom styling to volume series
-    volumeSeries.applyOptions({
-      color: '#26a69a',
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
+    // Set initial data
+    candlestickSeries.setData(formattedData);
 
-    // Set the data with proper validation
-    const validData = data.filter(item => 
-      item && 
-      typeof item.timestamp === 'number' && 
-      typeof item.open === 'number' && 
-      typeof item.high === 'number' && 
-      typeof item.low === 'number' && 
-      typeof item.close === 'number' && 
-      typeof item.volume === 'number'
-    );
+    // Handle window resize
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
 
-    if (validData.length > 0) {
-      // Format timestamp to ensure it's a proper UTC timestamp without time component
-      const formattedData = validData.map(item => {
-        // Convert to milliseconds if needed
-        const timestamp = item.timestamp > 10000000000 ? item.timestamp : item.timestamp * 1000;
-        
-        // Create date object and strip time component
-        const date = new Date(timestamp);
-        const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        const utcTimestamp = new Date(dateString).getTime() / 1000;
-        
-        return {
-          ...item,
-          formattedTimestamp: utcTimestamp as UTCTimestamp
-        };
-      });
-      
-      // Set candlestick data
-      mainSeries.setData(
-        formattedData.map(item => ({
-          time: item.formattedTimestamp,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.close,
-        }))
-      );
-
-      // Set volume data with color based on price movement
-      volumeSeries.setData(
-        formattedData.map(item => ({
-          time: item.formattedTimestamp,
-          value: item.volume,
-          color: item.close >= item.open ? '#26a69a80' : '#ef535080', // Semi-transparent colors
-        }))
-      );
-    }
-
-    // Make chart responsive
     window.addEventListener('resize', handleResize);
 
-    // Fit the chart content
-    chart.timeScale().fitContent();
-
-    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (chartRef.current) {
+        chartRef.current.remove();
+      }
     };
-  }, [data, height, width]);
+  }, [chartOptions, height]);
 
   return (
-    <div className="relative w-full">
-      <div ref={chartContainerRef} className="w-full h-[600px]" />
-    </div>
+    <div ref={chartContainerRef} className="w-full" />
   );
 } 
