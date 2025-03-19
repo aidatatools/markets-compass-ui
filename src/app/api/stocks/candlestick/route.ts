@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCandlestickData } from '@/services/stockService';
 
+export const dynamic = 'force-dynamic';
 export const revalidate = 60; // SWR: 60 seconds
 
 export async function GET(request: Request) {

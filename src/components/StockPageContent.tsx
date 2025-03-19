@@ -42,6 +42,8 @@ export default function StockPageContent({ symbol }: StockPageContentProps) {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 0,
+      revalidateIfStale: true,
+      revalidateOnMount: true,
     }
   );
 
