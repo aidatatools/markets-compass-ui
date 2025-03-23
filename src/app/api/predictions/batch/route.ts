@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
+// Make this route dynamic
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
+    // Log request timestamp for debugging
+    console.log('Predictions batch API call:', new Date().toISOString());
+    
     const uri = process.env.MONGODB_URI;
     if (!uri) {
       throw new Error('MONGODB_URI is not defined');
@@ -41,7 +47,15 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, any>);
 
-    return NextResponse.json(results);
+    console.log('Predictions found:', Object.keys(results).length);
+
+    // Create response with no-cache headers
+    const response = NextResponse.json(results);
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    response.headers.set('Expires', '0');
+    response.headers.set('Pragma', 'no-cache');
+
+    return response;
   } catch (error) {
     console.error('Error fetching batch predictions:', error);
     return NextResponse.json(
