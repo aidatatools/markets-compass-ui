@@ -18,7 +18,7 @@
     "dotenv": "^16.4.7",
     "lightweight-charts": "^3.8.0",
     "mongodb": "^6.14.2",
-    "next": "15.2.3",
+    "next": "15.2.4",
     "node-cron": "^3.0.3",
     "prisma": "^6.5.0",
     "react": "^19.0.0",
@@ -36,7 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.2.3",
+    "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
