@@ -9,7 +9,7 @@
   package = "@netlify/plugin-nextjs"
 
 [functions]
-  external_node_modules = ["@prisma/client"]
+  external_node_modules = ["@prisma/client", "alphavantage"]
   node_bundler = "esbuild"
 
 [functions.fetch-stocks]

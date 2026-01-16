@@ -16,6 +16,7 @@
   "dependencies": {
     "@netlify/functions": "^3.0.1",
     "@prisma/client": "^6.5.0",
+    "alphavantage": "^2.5.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "lightweight-charts": "^3.8.0",

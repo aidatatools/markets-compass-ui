@@ -1,62 +1,82 @@
 import { Handler, HandlerEvent } from "@netlify/functions";
 import { PrismaClient } from "@prisma/client";
-
-// Suppress the deprecation warning for util._extend
-process.removeAllListeners('warning');
-process.on('warning', (warning) => {
-  if (warning.name === 'DeprecationWarning' &&
-      warning.message.includes('util._extend')) {
-    return;
-  }
-  console.warn(warning);
-});
-
-import yahooFinance from "yahoo-finance2";
-
-// Suppress yahoo-finance2 deprecation notices
-yahooFinance.suppressNotices(['ripHistorical']);
+import alpha from "alphavantage";
 
 const prisma = new PrismaClient();
 
+// Initialize Alpha Vantage with API key
+const alphaVantage = alpha({ key: process.env.ALPHA_VANTAGE_API_KEY || '' });
+
 // Define the stock data type
 type StockQuote = {
-  regularMarketOpen: number;
-  regularMarketDayHigh: number;
-  regularMarketDayLow: number;
-  regularMarketPrice: number;
-  regularMarketVolume: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 };
 
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
 const MAX_RETRIES = 3;
-const DELAY_BETWEEN_REQUESTS = 3000; // 3 seconds between requests (increased for rate limiting)
-const DELAY_BETWEEN_SYMBOLS = 5000; // 5 seconds between symbols
+const DELAY_BETWEEN_REQUESTS = 15000; // 15 seconds between requests (Alpha Vantage free tier: 5 calls/min)
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchWithRetry(symbol: string, retries = 0): Promise<StockQuote> {
+// Fetch current quote from Alpha Vantage
+async function fetchQuote(symbol: string, retries = 0): Promise<StockQuote> {
   try {
-    const quoteResponse = await yahooFinance.quote(symbol);
+    const data = await alphaVantage.data.quote(symbol);
 
-    // Create a properly typed object from the response
-    const quote: StockQuote = {
-      regularMarketOpen: Number(quoteResponse.regularMarketOpen || 0),
-      regularMarketDayHigh: Number(quoteResponse.regularMarketDayHigh || 0),
-      regularMarketDayLow: Number(quoteResponse.regularMarketDayLow || 0),
-      regularMarketPrice: Number(quoteResponse.regularMarketPrice || 0),
-      regularMarketVolume: Number(quoteResponse.regularMarketVolume || 0)
+    // Alpha Vantage returns data in "Global Quote" format
+    const quote = data['Global Quote'];
+
+    if (!quote || !quote['05. price']) {
+      throw new Error(`No quote data returned for ${symbol}`);
+    }
+
+    return {
+      open: parseFloat(quote['02. open'] || '0'),
+      high: parseFloat(quote['03. high'] || '0'),
+      low: parseFloat(quote['04. low'] || '0'),
+      close: parseFloat(quote['05. price'] || '0'),
+      volume: parseInt(quote['06. volume'] || '0', 10),
     };
-
-    return quote;
   } catch (error) {
     if (retries < MAX_RETRIES) {
       console.log(`Retry ${retries + 1} for ${symbol} after error:`, error);
       await sleep(DELAY_BETWEEN_REQUESTS * (retries + 1));
-      return fetchWithRetry(symbol, retries + 1);
+      return fetchQuote(symbol, retries + 1);
     }
     throw error;
+  }
+}
+
+// Fetch historical data from Alpha Vantage for backfill
+async function fetchHistoricalData(symbol: string): Promise<any[]> {
+  try {
+    const data = await alphaVantage.data.daily(symbol, 'compact'); // 'compact' returns last 100 data points
+
+    const timeSeries = data['Time Series (Daily)'];
+
+    if (!timeSeries) {
+      console.log(`No historical data returned for ${symbol}`);
+      return [];
+    }
+
+    // Convert to array format
+    return Object.entries(timeSeries).map(([date, values]: [string, any]) => ({
+      date: new Date(date),
+      open: parseFloat(values['1. open']),
+      high: parseFloat(values['2. high']),
+      low: parseFloat(values['3. low']),
+      close: parseFloat(values['4. close']),
+      volume: parseInt(values['5. volume'], 10),
+    }));
+  } catch (error) {
+    console.error(`Error fetching historical data for ${symbol}:`, error);
+    return [];
   }
 }
 
@@ -88,36 +108,34 @@ async function backfillMissingData(symbol: string): Promise<number> {
 
     console.log(`${symbol} is missing ${daysDiff} days, attempting backfill...`);
 
-    // Fetch historical data from Yahoo Finance using chart() API
-    const startDate = new Date(lastDate.getTime() + 24 * 60 * 60 * 1000); // Day after last record
+    // Fetch historical data from Alpha Vantage
+    const historicalData = await fetchHistoricalData(symbol);
 
-    const result = await yahooFinance.chart(symbol, {
-      period1: startDate,
-      period2: today,
-      interval: '1d',
-    });
-
-    const quotes = result.quotes;
-
-    if (!quotes || quotes.length === 0) {
+    if (historicalData.length === 0) {
       console.log(`No backfill data available for ${symbol}`);
       return 0;
     }
 
+    // Filter to only dates after our last record
+    const newData = historicalData.filter(item => item.date > lastDate);
+
+    if (newData.length === 0) {
+      console.log(`No new data to backfill for ${symbol}`);
+      return 0;
+    }
+
     const dbResult = await prisma.stockData.createMany({
-      data: quotes
-        .filter((quote: any) => quote.close !== null)
-        .map((quote: any) => ({
-          symbol: symbol,
-          date: new Date(quote.date),
-          open: quote.open,
-          high: quote.high,
-          low: quote.low,
-          close: quote.close,
-          volume: Math.round(quote.volume || 0),
-          adjClose: quote.adjclose || quote.close,
-          timestamp: new Date(quote.date),
-        })),
+      data: newData.map((quote) => ({
+        symbol: symbol,
+        date: quote.date,
+        open: quote.open,
+        high: quote.high,
+        low: quote.low,
+        close: quote.close,
+        volume: quote.volume,
+        adjClose: quote.close, // Alpha Vantage compact doesn't include adjusted close
+        timestamp: quote.date,
+      })),
       skipDuplicates: true,
     });
 
@@ -131,13 +149,14 @@ async function backfillMissingData(symbol: string): Promise<number> {
 
 async function fetchAndSaveStockData() {
   console.log(`Starting stock data fetch at ${new Date().toISOString()}`);
+  console.log(`Using Alpha Vantage API`);
 
   try {
     // Step 1: Check for and backfill any missing historical data
     console.log('\n=== Checking for missing data to backfill ===');
     for (const symbol of SYMBOLS) {
       await backfillMissingData(symbol);
-      await sleep(DELAY_BETWEEN_SYMBOLS); // Wait between symbols to avoid rate limiting
+      await sleep(DELAY_BETWEEN_REQUESTS); // Wait between symbols to avoid rate limiting
     }
 
     // Step 2: Fetch today's data
@@ -167,11 +186,9 @@ async function fetchAndSaveStockData() {
       }
 
       try {
-        const quote = await fetchWithRetry(symbol);
+        const quote = await fetchQuote(symbol);
 
-        if (!quote.regularMarketOpen || !quote.regularMarketDayHigh ||
-            !quote.regularMarketDayLow || !quote.regularMarketPrice ||
-            !quote.regularMarketVolume) {
+        if (!quote.open || !quote.high || !quote.low || !quote.close) {
           throw new Error(`Missing required data for ${symbol}`);
         }
 
@@ -181,17 +198,17 @@ async function fetchAndSaveStockData() {
             symbol,
             date: today,
             timestamp: today,
-            open: Number(quote.regularMarketOpen),
-            high: Number(quote.regularMarketDayHigh),
-            low: Number(quote.regularMarketDayLow),
-            close: Number(quote.regularMarketPrice),
-            volume: Math.floor(Number(quote.regularMarketVolume)),
-            adjClose: Number(quote.regularMarketPrice)
+            open: quote.open,
+            high: quote.high,
+            low: quote.low,
+            close: quote.close,
+            volume: quote.volume,
+            adjClose: quote.close
           }
         });
 
-        console.log(`Successfully saved data for ${symbol} with date ${today.toISOString()}`);
-        await sleep(DELAY_BETWEEN_SYMBOLS);
+        console.log(`Successfully saved data for ${symbol}: $${quote.close.toFixed(2)}`);
+        await sleep(DELAY_BETWEEN_REQUESTS);
       } catch (error) {
         console.error(`Error processing ${symbol}:`, error);
       }
@@ -211,7 +228,7 @@ export const handler: Handler = async (_event: HandlerEvent) => {
     await fetchAndSaveStockData();
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Stock data fetched and saved successfully' }),
+      body: JSON.stringify({ message: 'Stock data fetched and saved successfully using Alpha Vantage' }),
     };
   } catch (error) {
     console.error('Error in handler:', error);
@@ -220,4 +237,4 @@ export const handler: Handler = async (_event: HandlerEvent) => {
       body: JSON.stringify({ error: 'Failed to fetch and save stock data' }),
     };
   }
-}; 
+};
