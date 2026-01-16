@@ -4,7 +4,8 @@ import yahooFinance from "yahoo-finance2";
 import 'dotenv/config';
 
 const prisma = new PrismaClient({
-  accelerateUrl: process.env.DATABASE_URL,
+  // Fallback to a dummy URL to bypass Prisma 7 constructor validation during build
+  accelerateUrl: process.env.DATABASE_URL || "prisma+postgres://dummy.prisma-postgres.com/?api_key=dummy",
 }).$extends(withAccelerate());
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
 const DELAY_BETWEEN_REQUESTS = 2000;

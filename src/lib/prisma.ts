@@ -6,9 +6,11 @@ import { withAccelerate } from '@prisma/extension-accelerate';
 const globalForPrisma = global as unknown as { prisma: any };
 
 // Initialize Prisma client with Accelerate URL if available
+// Initialize Prisma client with Accelerate URL if available
 if (!globalForPrisma.prisma) {
   const client = new PrismaClient({
-    accelerateUrl: process.env.DATABASE_URL,
+    // Fallback to a dummy URL to bypass Prisma 7 constructor validation during build
+    accelerateUrl: process.env.DATABASE_URL || "prisma+postgres://dummy.prisma-postgres.com/?api_key=dummy",
   });
 
   globalForPrisma.prisma = client.$extends(withAccelerate());
