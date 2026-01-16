@@ -1,19 +1,17 @@
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
 // Use a single PrismaClient instance for the entire application
 // This prevents too many connections in development
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForPrisma = global as unknown as { prisma: any };
 
 // Initialize Prisma client with Accelerate URL if available
 if (!globalForPrisma.prisma) {
-  const options: any = {};
+  const client = new PrismaClient({
+    accelerateUrl: process.env.DATABASE_URL,
+  });
 
-  // Only add accelerateUrl if DATABASE_URL is set
-  if (process.env.DATABASE_URL) {
-    options.accelerateUrl = process.env.DATABASE_URL;
-  }
-
-  globalForPrisma.prisma = new PrismaClient(options);
+  globalForPrisma.prisma = client.$extends(withAccelerate());
 }
 
-export const prisma = globalForPrisma.prisma; 
+export const prisma = globalForPrisma.prisma;

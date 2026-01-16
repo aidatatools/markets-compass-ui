@@ -1,10 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { withAccelerate } from "@prisma/extension-accelerate";
 import yahooFinance from "yahoo-finance2";
 import 'dotenv/config';
 
 const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL,
-});
+}).$extends(withAccelerate());
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
 const DELAY_BETWEEN_REQUESTS = 2000;
 
