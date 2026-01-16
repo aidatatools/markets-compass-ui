@@ -1,7 +1,9 @@
 import yahooFinance from 'yahoo-finance2';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  accelerateUrl: process.env.DATABASE_URL,
+});
 
 interface CandlestickData {
   timestamp: number;  // Unix timestamp in milliseconds
@@ -108,7 +110,7 @@ export async function fetchAndStoreStockData(symbols: string[]) {
         const quote = await yahooFinance.quote(symbol);
         const price = quote.regularMarketPrice || 0;
         const now = new Date();
-        
+
         const stockData = await prisma.stockData.create({
           data: {
             symbol: symbol,

@@ -2,7 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import alpha from 'alphavantage';
 import 'dotenv/config';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  accelerateUrl: process.env.DATABASE_URL,
+});
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
 
 // Initialize Alpha Vantage with API key
