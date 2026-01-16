@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test": "echo \"Tests passed\"",
     "fetch:historical": "tsx scripts/fetch-historical-data.ts",
-    "clear:stocks": "tsx scripts/clear-stock-data.ts"
+    "clear:stocks": "tsx scripts/clear-stock-data.ts",
+    "update:latest": "tsx scripts/update-latest-data.ts",
+    "check:data": "tsx scripts/check-latest-data.ts"
   },
   "dependencies": {
     "@netlify/functions": "^3.0.1",

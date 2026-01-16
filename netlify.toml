@@ -13,4 +13,4 @@
   node_bundler = "esbuild"
 
 [functions.fetch-stocks]
-  schedule = "45 21 * * 1-5" # 5:45 PM Eastern = 21:45 UTC, Monday-Friday 
+  schedule = "45 22 * * 1-5" # 6:45 PM Eastern (EST) = 22:45 UTC, Monday-Friday 
