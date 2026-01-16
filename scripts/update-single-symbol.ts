@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import yahooFinance from 'yahoo-finance2';
+import 'dotenv/config';
 
 yahooFinance.suppressNotices(['ripHistorical']);
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  accelerateUrl: process.env.DATABASE_URL,
+});
 
 // Get symbol from command line argument
 const symbol = process.argv[2] || 'SPY';
