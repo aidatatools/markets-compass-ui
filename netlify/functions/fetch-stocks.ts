@@ -18,7 +18,7 @@ type StockQuote = {
 };
 
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
-const DELAY_BETWEEN_REQUESTS = 13000; // 13 seconds between requests (Alpha Vantage free tier: 5 calls/min)
+const DELAY_BETWEEN_REQUESTS = 6000; // 6 seconds between requests to fit within 30s timeout
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
