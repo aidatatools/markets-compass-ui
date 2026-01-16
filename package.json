@@ -20,7 +20,7 @@
     "dotenv": "^16.4.7",
     "lightweight-charts": "^3.8.0",
     "mongodb": "^6.14.2",
-    "next": "15.2.4",
+    "next": "^16.1.2",
     "node-cron": "^3.0.3",
     "prisma": "^6.5.0",
     "react": "^19.0.0",
