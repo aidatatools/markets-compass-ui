@@ -4,9 +4,7 @@ import 'dotenv/config';
 
 yahooFinance.suppressNotices(['ripHistorical']);
 
-const prisma = new PrismaClient({
-  accelerateUrl: process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient();
 
 // Get symbol from command line argument
 const symbol = process.argv[2] || 'SPY';

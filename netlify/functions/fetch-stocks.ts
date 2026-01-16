@@ -2,9 +2,7 @@ import { Handler, HandlerEvent } from "@netlify/functions";
 import { PrismaClient } from "@prisma/client";
 import alpha from "alphavantage";
 
-const prisma = new PrismaClient({
-  accelerateUrl: process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient();
 
 // Initialize Alpha Vantage with API key
 const alphaVantage = alpha({ key: process.env.ALPHA_VANTAGE_API_KEY || '' });
