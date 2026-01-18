@@ -1,14 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import useSWR from 'swr';
 
 const SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD'];
 
-interface Prediction {
-  prediction: string;
+interface TermPrediction {
+  direction: 'up' | 'down' | 'neutral';
   confidence: number;
+  prediction: string;
+}
+
+interface Prediction {
+  shortTerm: TermPrediction;
+  mediumTerm: TermPrediction;
+  longTerm: TermPrediction;
   timestamp: string;
 }
 
@@ -25,7 +31,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function PredictionsPage() {
-  const { data, error, isLoading, mutate } = useSWR('/api/predictions/batch', fetcher, {
+  const { data, isLoading, mutate } = useSWR('/api/predictions/batch', fetcher, {
     refreshInterval: 60000, // Refresh every minute
     revalidateOnFocus: true,
     dedupingInterval: 10000
@@ -33,37 +39,47 @@ export default function PredictionsPage() {
   
   const formatPredictions = (): PredictionSummary => {
     if (!data) return {};
-    
+
     const results: PredictionSummary = {};
     SYMBOLS.forEach(symbol => {
       const prediction = data[symbol];
-      if (prediction) {
+      if (prediction && prediction.shortTerm) {
         results[symbol] = {
-          prediction: prediction.prediction,
-          confidence: Math.round(prediction.confidence * 100), // Convert decimal to percentage
+          shortTerm: prediction.shortTerm,
+          mediumTerm: prediction.mediumTerm,
+          longTerm: prediction.longTerm,
           timestamp: prediction.timestamp
         };
       } else {
         results[symbol] = null;
       }
     });
-    
+
     return results;
   };
-  
+
   const predictions = formatPredictions();
 
-  const getPredictionEmoji = (prediction: string): string => {
-    const lowerPrediction = prediction?.toLowerCase() || '';
-    if (lowerPrediction.includes('up') || lowerPrediction.includes('rise') || 
-        lowerPrediction.includes('increase') || lowerPrediction.includes('higher')) {
-      return '⬆️';
+  const getDirectionEmoji = (direction: string): string => {
+    switch (direction) {
+      case 'up':
+        return '📈';
+      case 'down':
+        return '📉';
+      default:
+        return '➡️';
     }
-    if (lowerPrediction.includes('down') || lowerPrediction.includes('fall') || 
-        lowerPrediction.includes('decrease') || lowerPrediction.includes('lower')) {
-      return '⬇️';
+  };
+
+  const getDirectionColor = (direction: string): string => {
+    switch (direction) {
+      case 'up':
+        return 'text-green-600 dark:text-green-400';
+      case 'down':
+        return 'text-red-600 dark:text-red-400';
+      default:
+        return 'text-yellow-600 dark:text-yellow-400';
     }
-    return '';
   };
 
   const formatTimestamp = (timestamp: string): string => {
@@ -119,11 +135,15 @@ export default function PredictionsPage() {
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{symbol}</h2>
                 {predictions[symbol] ? (
                   <div className="mt-2">
-                    <p className="text-lg text-gray-700 dark:text-gray-300">
-                      {predictions[symbol]?.prediction} {getPredictionEmoji(predictions[symbol]?.prediction || '')}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Confidence: {predictions[symbol]?.confidence}%
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl">{getDirectionEmoji(predictions[symbol]?.shortTerm.direction || '')}</span>
+                      <span className={`text-lg font-semibold capitalize ${getDirectionColor(predictions[symbol]?.shortTerm.direction || '')}`}>
+                        {predictions[symbol]?.shortTerm.direction}
+                      </span>
+                      <span className="text-sm text-gray-500">(short-term)</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Confidence: {Math.round((predictions[symbol]?.shortTerm.confidence || 0) * 100)}%
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                       Updated: {formatTimestamp(predictions[symbol]?.timestamp || '')}

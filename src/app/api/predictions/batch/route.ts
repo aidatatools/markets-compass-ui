@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     await client.connect();
     console.log('Connected to MongoDB');
 
-    const db = client.db('markets_compass');
+    const db = client.db('items');
     const predictions = db.collection('predictions');
 
     // Get the latest prediction for each symbol
@@ -28,9 +28,10 @@ export async function GET(request: NextRequest) {
       },
       {
         $group: {
-          _id: '$symbolId',
-          prediction: { $first: '$prediction' },
-          confidence: { $first: '$confidence' },
+          _id: '$symbol',
+          shortTerm: { $first: '$shortTerm' },
+          mediumTerm: { $first: '$mediumTerm' },
+          longTerm: { $first: '$longTerm' },
           timestamp: { $first: '$timestamp' }
         }
       }
@@ -40,8 +41,9 @@ export async function GET(request: NextRequest) {
 
     const results = latestPredictions.reduce((acc, pred) => {
       acc[pred._id] = {
-        prediction: pred.prediction,
-        confidence: pred.confidence,
+        shortTerm: pred.shortTerm,
+        mediumTerm: pred.mediumTerm,
+        longTerm: pred.longTerm,
         timestamp: pred.timestamp
       };
       return acc;
