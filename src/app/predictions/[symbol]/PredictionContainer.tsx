@@ -1,22 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+
+interface TermPrediction {
+  direction: 'up' | 'down' | 'neutral';
+  confidence: number;
+  prediction: string;
+}
+
+interface ExplanationItem {
+  explanation: string;
+  citationUrl: string;
+}
 
 interface Prediction {
-  _id: string;
-  symbolId: string;
-  prediction: string;
-  confidence: number;
+  symbol: string;
   timestamp: string;
-  rawResponse: {
-    success: boolean;
-    answer: string;
-    learnings: string[];
-    visitedUrls: string[];
-  };
-  markdownReport: string;
-  htmlReport: string;
+  shortTerm: TermPrediction;
+  mediumTerm: TermPrediction;
+  longTerm: TermPrediction;
+  explanations: ExplanationItem[];
 }
 
 interface Props {
@@ -46,17 +49,65 @@ function getTimezone(): string {
 }
 
 function formatConfidence(confidence: number): string {
-  return (confidence * 100).toFixed(2);
+  return (confidence * 100).toFixed(0);
 }
 
-function getPredictionEmoji(prediction: string): string {
-  const lowerPrediction = prediction.toLowerCase();
-  if (lowerPrediction.includes('up') || lowerPrediction.includes('rise') || lowerPrediction.includes('increase') || lowerPrediction.includes('higher')) {
-    return ' ⬆️';
-  } else if (lowerPrediction.includes('down') || lowerPrediction.includes('fall') || lowerPrediction.includes('decrease') || lowerPrediction.includes('lower')) {
-    return ' ⬇️';
+function getDirectionEmoji(direction: string): string {
+  switch (direction) {
+    case 'up':
+      return '📈';
+    case 'down':
+      return '📉';
+    default:
+      return '➡️';
   }
-  return '';
+}
+
+function getDirectionColor(direction: string): string {
+  switch (direction) {
+    case 'up':
+      return 'text-green-600 dark:text-green-400';
+    case 'down':
+      return 'text-red-600 dark:text-red-400';
+    default:
+      return 'text-yellow-600 dark:text-yellow-400';
+  }
+}
+
+function getConfidenceColor(confidence: number): string {
+  if (confidence >= 0.7) return 'bg-green-500';
+  if (confidence >= 0.5) return 'bg-yellow-500';
+  return 'bg-red-500';
+}
+
+function TermCard({ title, term, timeframe }: { title: string; term: TermPrediction; timeframe: string }) {
+  return (
+    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{timeframe}</span>
+      </div>
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-3xl">{getDirectionEmoji(term.direction)}</span>
+        <span className={`text-2xl font-bold capitalize ${getDirectionColor(term.direction)}`}>
+          {term.direction}
+        </span>
+      </div>
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-sm mb-1">
+          <span className="text-gray-600 dark:text-gray-400">Confidence</span>
+          <span className="font-semibold">{formatConfidence(term.confidence)}%</span>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full ${getConfidenceColor(term.confidence)}`}
+            style={{ width: `${term.confidence * 100}%` }}
+          />
+        </div>
+      </div>
+      <p className="text-sm text-gray-700 dark:text-gray-300">{term.prediction}</p>
+    </div>
+  );
 }
 
 export default function PredictionContainer({ symbol }: Props) {
@@ -69,21 +120,16 @@ export default function PredictionContainer({ symbol }: Props) {
       try {
         setLoading(true);
         console.log('Fetching prediction for:', symbol);
-        
+
         const response = await fetch(`/api/predictions/${symbol}`);
         const data = await response.json();
-        
-        console.log('Received data:', {
-          success: response.ok,
-          status: response.status,
-          hasData: !!data,
-          hasMarkdownReport: data?.markdownReport ? 'yes' : 'no'
-        });
-        
+
+        console.log('Received data:', data);
+
         if (!response.ok) {
           throw new Error(data.error || 'Failed to fetch prediction');
         }
-        
+
         setPrediction(data);
         setError(null);
       } catch (err) {
@@ -129,89 +175,57 @@ export default function PredictionContainer({ symbol }: Props) {
   const predictionDate = new Date(prediction.timestamp);
   const timezone = getTimezone();
 
-  console.log('Rendering prediction:', {
-    id: prediction._id,
-    symbol: prediction.symbolId,
-    hasMarkdownReport: !!prediction.markdownReport,
-    markdownReportLength: prediction.markdownReport?.length
-  });
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto p-6">
+      {/* Header */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{symbol} Market Predictions</h1>
+        <div className="mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {symbol} Market Predictions
+          </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Powered by OpenAI o3-mini model for real-time market analysis via Deep-research
+            AI-powered deep research analysis
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            Last updated: {formatDate(predictionDate)} at {formatTime(predictionDate)} {timezone}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Prediction</h2>
-            <p className="mt-1 text-lg font-semibold">
-              {prediction.prediction}{getPredictionEmoji(prediction.prediction)}
-            </p>
-          </div>
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Confidence</h2>
-            <p className="mt-1 text-lg font-semibold">{formatConfidence(prediction.confidence)}%</p>
-          </div>
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h2>
-            <p className="mt-1 text-lg font-semibold">
-              {formatDate(predictionDate)}
-            </p>
-          </div>
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Time ({timezone})</h2>
-            <p className="mt-1 text-lg font-semibold">
-              {formatTime(predictionDate)}
-            </p>
-          </div>
+
+        {/* Prediction Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <TermCard title="Short Term" term={prediction.shortTerm} timeframe="1-5 days" />
+          <TermCard title="Medium Term" term={prediction.mediumTerm} timeframe="1-4 weeks" />
+          <TermCard title="Long Term" term={prediction.longTerm} timeframe="1-3 months" />
         </div>
       </div>
 
-      {prediction.markdownReport ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
-          <article className="prose prose-slate lg:prose-lg dark:prose-invert
-            prose-h1:text-3xl prose-h1:font-extrabold prose-h1:mb-4 prose-h1:text-blue-900 dark:prose-h1:text-blue-100
-            prose-h2:text-2xl prose-h2:font-bold prose-h2:mb-3 prose-h2:text-blue-800 dark:prose-h2:text-blue-200
-            prose-h3:text-xl prose-h3:font-semibold prose-h3:mb-2 prose-h3:text-blue-700 dark:prose-h3:text-blue-300
-            prose-p:text-base prose-p:leading-7 prose-p:mb-4 prose-p:text-gray-700 dark:prose-p:text-gray-300
-            prose-strong:text-blue-700 dark:prose-strong:text-blue-300 prose-strong:font-bold
-            prose-ul:list-disc prose-ul:pl-5 prose-ul:my-4
-            prose-li:my-2 prose-li:text-gray-700 dark:prose-li:text-gray-300
-            prose-table:border-collapse prose-table:w-full
-            prose-td:border prose-td:p-2 prose-td:border-gray-300 dark:prose-td:border-gray-600
-            prose-th:bg-gray-100 dark:prose-th:bg-gray-700 prose-th:border prose-th:p-2 prose-th:border-gray-300 dark:prose-th:border-gray-600">
-            <div className="space-y-4">
-              <ReactMarkdown
-                components={{
-                  h1: ({node, ...props}) => <h1 className="text-3xl font-extrabold text-blue-900 dark:text-blue-100 border-b border-gray-200 dark:border-gray-700 pb-2 mb-6" {...props} />,
-                  h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-blue-800 dark:text-blue-200 mt-8 mb-4" {...props} />,
-                  h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-blue-700 dark:text-blue-300 mt-6 mb-3" {...props} />,
-                  p: ({node, ...props}) => <p className="text-gray-700 dark:text-gray-300 leading-7 mb-4" {...props} />,
-                  strong: ({node, ...props}) => <strong className="font-bold text-blue-700 dark:text-blue-300" {...props} />,
-                  ul: ({node, ...props}) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
-                  li: ({node, ...props}) => <li className="text-gray-700 dark:text-gray-300" {...props} />,
-                  hr: ({node, ...props}) => <hr className="my-8 border-gray-200 dark:border-gray-700" {...props} />,
-                }}
-              >
-                {prediction.markdownReport}
-              </ReactMarkdown>
-            </div>
-          </article>
-        </div>
-      ) : (
-        <div className="p-6">
-          <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-200 px-4 py-3 rounded">
-            No markdown report available for this prediction
+      {/* Key Insights */}
+      {prediction.explanations && prediction.explanations.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Key Insights</h2>
+          <div className="space-y-4">
+            {prediction.explanations.map((item, index) => (
+              <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                <p className="text-gray-700 dark:text-gray-300 mb-2">{item.explanation}</p>
+                <a
+                  href={item.citationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Source
+                </a>
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
   );
-} 
+}

@@ -19,13 +19,15 @@ export async function GET(
     await client.connect();
     console.log('Connected to MongoDB');
 
-    const db = client.db('markets_compass');
+    const db = client.db('items');
     const predictions = db.collection('predictions');
 
-    const prediction = await predictions.findOne(
-      { symbolId },
-      { sort: { timestamp: -1 } }
-    );
+    const prediction = await predictions
+      .find({ symbol: symbolId })
+      .sort({ timestamp: -1 })
+      .limit(1)
+      .toArray()
+      .then(docs => docs[0] || null);
 
     await client.close();
 
@@ -39,18 +41,17 @@ export async function GET(
 
     console.log('Found prediction:', {
       _id: prediction._id,
-      symbolId: prediction.symbolId,
-      prediction: prediction.prediction,
-      confidence: prediction.confidence
+      symbol: prediction.symbol,
+      timestamp: prediction.timestamp
     });
 
     return NextResponse.json({
-      prediction: prediction.prediction,
-      confidence: prediction.confidence,
+      symbol: prediction.symbol,
       timestamp: prediction.timestamp,
-      symbolId: prediction.symbolId,
-      markdownReport: prediction.markdownReport,
-      htmlReport: prediction.htmlReport
+      shortTerm: prediction.shortTerm,
+      mediumTerm: prediction.mediumTerm,
+      longTerm: prediction.longTerm,
+      explanations: prediction.explanations
     });
   } catch (error) {
     console.error('Error fetching prediction:', error);

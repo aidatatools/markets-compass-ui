@@ -12,7 +12,7 @@ export default function Footer() {
           >
             aidatatools
           </a>
-          {' '}2025
+          {' '}2025 - 2026
         </p>
       </div>
     </footer>

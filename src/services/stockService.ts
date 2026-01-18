@@ -49,7 +49,7 @@ export async function getCandlestickData(
       },
     });
 
-    return data.map(item => ({
+    return data.map((item: StockDataSelect) => ({
       timestamp: item.timestamp.getTime(),
       open: useAdjusted ? (item.open * item.adjClose / item.close) : item.open,
       high: useAdjusted ? (item.high * item.adjClose / item.close) : item.high,

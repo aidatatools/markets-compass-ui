@@ -28,6 +28,11 @@ if (process.env.NODE_ENV === 'development') {
   clientPromise = client.connect();
 }
 
+export interface ExplanationItem {
+  explanation: string;
+  citationUrl: string;
+}
+
 export interface Prediction {
   symbol: string;
   timestamp: Date;
@@ -46,6 +51,7 @@ export interface Prediction {
     confidence: number;
     prediction: string;
   };
+  explanations?: ExplanationItem[];
 }
 
 type PredictionDocument = Document & Prediction;
@@ -60,7 +66,7 @@ export async function getLatestPrediction(symbol: string): Promise<Prediction | 
     const client = await clientPromise;
     console.log('Connected successfully to MongoDB');
 
-    const db = client.db('markets_compass');
+    const db = client.db('items');
     const collection = db.collection<PredictionDocument>('predictions');
 
     console.log(`Fetching prediction for symbol: ${symbol.toUpperCase()}`);
