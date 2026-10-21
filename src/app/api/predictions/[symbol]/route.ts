@@ -1,35 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { getLatestPrediction } from '@/services/predictionService';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    const resolvedParams = await Promise.resolve(params);
-    const symbolId = resolvedParams.symbol.toUpperCase();
+    const { symbol } = await params;
+    const symbolId = symbol.toUpperCase();
     console.log('Fetching prediction for symbol:', symbolId);
 
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      throw new Error('MONGODB_URI is not defined');
-    }
-
-    const client = new MongoClient(uri);
-    await client.connect();
-    console.log('Connected to MongoDB');
-
-    const db = client.db('items');
-    const predictions = db.collection('predictions');
-
-    const prediction = await predictions
-      .find({ symbol: symbolId })
-      .sort({ timestamp: -1 })
-      .limit(1)
-      .toArray()
-      .then(docs => docs[0] || null);
-
-    await client.close();
+    const prediction = await getLatestPrediction(symbolId);
 
     if (!prediction) {
       console.log('No prediction found for:', symbolId);
@@ -38,12 +19,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    console.log('Found prediction:', {
-      _id: prediction._id,
-      symbol: prediction.symbol,
-      timestamp: prediction.timestamp
-    });
 
     return NextResponse.json({
       symbol: prediction.symbol,
@@ -60,4 +35,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

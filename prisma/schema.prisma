@@ -32,3 +32,19 @@ model Feedback {
 
   @@index([createdAt])
 }
+
+// Deep-research predictions written by markets-deep-research.
+// Each term is { direction: 'up' | 'down' | 'neutral', confidence: number, prediction: string };
+// explanations is [{ explanation: string, citationUrl: string }].
+model Prediction {
+  id           String   @id
+  symbol       String
+  timestamp    DateTime
+  shortTerm    Json
+  mediumTerm   Json
+  longTerm     Json
+  explanations Json     @default("[]")
+
+  @@unique([symbol, timestamp])
+  @@index([symbol, timestamp(sort: Desc)])
+}

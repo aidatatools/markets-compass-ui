@@ -21,7 +21,6 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "lightweight-charts": "^3.8.0",
-    "mongodb": "^6.14.2",
     "next": "^16.1.2",
     "node-cron": "^3.0.3",
     "prisma": "^7.2.0",

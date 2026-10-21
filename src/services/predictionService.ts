@@ -1,105 +1,65 @@
-import { MongoClient, Document } from 'mongodb';
-
-if (!process.env.MONGODB_URI) {
-  throw new Error('Please add your Mongo URI to .env.local');
-}
-
-const uri = process.env.MONGODB_URI;
-const options = {};
-
-let client;
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  let globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
-
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
-  }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
+import { prisma } from '@/lib/prisma';
 
 export interface ExplanationItem {
   explanation: string;
   citationUrl: string;
 }
 
+export interface TermPrediction {
+  direction: 'up' | 'down' | 'neutral';
+  confidence: number;
+  prediction: string;
+}
+
 export interface Prediction {
   symbol: string;
   timestamp: Date;
-  shortTerm: {
-    direction: 'up' | 'down' | 'neutral';
-    confidence: number;
-    prediction: string;
-  };
-  mediumTerm: {
-    direction: 'up' | 'down' | 'neutral';
-    confidence: number;
-    prediction: string;
-  };
-  longTerm: {
-    direction: 'up' | 'down' | 'neutral';
-    confidence: number;
-    prediction: string;
-  };
+  shortTerm: TermPrediction;
+  mediumTerm: TermPrediction;
+  longTerm: TermPrediction;
   explanations?: ExplanationItem[];
 }
 
-type PredictionDocument = Document & Prediction;
+// Shape of a row in the Prediction table (Json columns come back untyped)
+interface PredictionRow {
+  symbol: string;
+  timestamp: Date;
+  shortTerm: unknown;
+  mediumTerm: unknown;
+  longTerm: unknown;
+  explanations: unknown;
+}
+
+function toPrediction(row: PredictionRow): Prediction {
+  return {
+    symbol: row.symbol,
+    timestamp: new Date(row.timestamp),
+    shortTerm: row.shortTerm as TermPrediction,
+    mediumTerm: row.mediumTerm as TermPrediction,
+    longTerm: row.longTerm as TermPrediction,
+    explanations: row.explanations as ExplanationItem[],
+  };
+}
 
 export async function getLatestPrediction(symbol: string): Promise<Prediction | null> {
   if (!symbol) {
     throw new Error('Symbol is required');
   }
 
-  try {
-    console.log('Connecting to MongoDB...');
-    const client = await clientPromise;
-    console.log('Connected successfully to MongoDB');
+  const row: PredictionRow | null = await prisma.prediction.findFirst({
+    where: { symbol: symbol.toUpperCase() },
+    orderBy: { timestamp: 'desc' },
+  });
 
-    const db = client.db('items');
-    const collection = db.collection<PredictionDocument>('predictions');
+  return row ? toPrediction(row) : null;
+}
 
-    console.log(`Fetching prediction for symbol: ${symbol.toUpperCase()}`);
-    const prediction = await collection
-      .find({ symbol: symbol.toUpperCase() })
-      .sort({ timestamp: -1 })
-      .limit(1)
-      .toArray();
-    
-    console.log(`Found ${prediction.length} predictions for ${symbol.toUpperCase()}`);
+// Latest prediction for every symbol
+export async function getLatestPredictions(): Promise<Prediction[]> {
+  const rows: PredictionRow[] = await prisma.prediction.findMany({
+    distinct: ['symbol'],
+    orderBy: [{ symbol: 'asc' }, { timestamp: 'desc' }],
+  });
 
-    if (prediction.length === 0) {
-      console.log(`No predictions found for ${symbol.toUpperCase()}`);
-      return null;
-    }
-
-    // Convert the MongoDB document to our Prediction type
-    const { _id, ...predictionData } = prediction[0];
-    
-    // Log the prediction data for debugging
-    console.log('Prediction data:', JSON.stringify(predictionData, null, 2));
-    
-    return {
-      ...predictionData,
-      timestamp: new Date(predictionData.timestamp)
-    };
-  } catch (error) {
-    console.error('Detailed error in getLatestPrediction:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      symbol,
-      mongoUri: uri.replace(/mongodb\+srv:\/\/([^:]+):([^@]+)@/, 'mongodb+srv://[username]:[password]@')
-    });
-    throw new Error(`Failed to fetch prediction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-} 
+  return rows.map(toPrediction);
+}

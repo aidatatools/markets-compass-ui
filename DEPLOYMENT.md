@@ -31,8 +31,7 @@ Your Markets Compass UI has been enhanced with dynamic features and is optimized
 Ensure you have:
 - A Netlify account (sign up at https://netlify.com)
 - Your environment variables ready:
-  - `DATABASE_URL` - PostgreSQL database connection string
-  - `MONGODB_URI` - MongoDB Atlas connection string
+  - `DATABASE_URL` - PostgreSQL database connection string (stock data, feedback and predictions)
 
 ### Step 2: Connect Repository
 1. Log in to Netlify
@@ -63,7 +62,6 @@ In Netlify Dashboard → Site settings → Environment variables, add:
 
 ```
 DATABASE_URL=your_postgresql_connection_string
-MONGODB_URI=your_mongodb_connection_string
 NEXT_PUBLIC_API_URL=/
 NODE_VERSION=22
 ```
@@ -120,7 +118,7 @@ Your `netlify.toml` includes:
 - **Image caching** (1 week for JPG/PNG files)
 
 ### Functions
-- External node modules bundled: `@prisma/client`, `yahoo-finance2`, `mongodb`
+- External node modules bundled: `@prisma/client`, `yahoo-finance2`
 - Node bundler: `esbuild` for faster builds
 - Prisma schema included in function bundles
 

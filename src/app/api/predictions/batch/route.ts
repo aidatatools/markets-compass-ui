@@ -1,46 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { NextResponse } from 'next/server';
+import { getLatestPredictions } from '@/services/predictionService';
 
 // Make this route dynamic
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Log request timestamp for debugging
     console.log('Predictions batch API call:', new Date().toISOString());
-    
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      throw new Error('MONGODB_URI is not defined');
-    }
 
-    const client = new MongoClient(uri);
-    await client.connect();
-    console.log('Connected to MongoDB');
-
-    const db = client.db('items');
-    const predictions = db.collection('predictions');
-
-    // Get the latest prediction for each symbol
-    const latestPredictions = await predictions.aggregate([
-      {
-        $sort: { timestamp: -1 }
-      },
-      {
-        $group: {
-          _id: '$symbol',
-          shortTerm: { $first: '$shortTerm' },
-          mediumTerm: { $first: '$mediumTerm' },
-          longTerm: { $first: '$longTerm' },
-          timestamp: { $first: '$timestamp' }
-        }
-      }
-    ]).toArray();
-
-    await client.close();
+    const latestPredictions = await getLatestPredictions();
 
     const results = latestPredictions.reduce((acc, pred) => {
-      acc[pred._id] = {
+      acc[pred.symbol] = {
         shortTerm: pred.shortTerm,
         mediumTerm: pred.mediumTerm,
         longTerm: pred.longTerm,
@@ -65,4 +37,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
